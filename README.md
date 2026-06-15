@@ -14,11 +14,11 @@ software — GitOps, progressive delivery, least-privilege data access, and clea
 on hardware you already own, with no cloud bill.
 
 > **Honesty note (it's a portfolio piece):** several designed components are not built yet.
-> What is **running today** is the read/write API split, PostgreSQL, pgAdmin, Traefik ingress, and
-> Argo CD. The **Envoy Gateway edge + central Swagger UI** ([ADR-0007](./docs/adr/0007-envoy-gateway-edge.md),
-> [ADR-0008](./docs/adr/0008-central-api-docs.md)) are implemented in `helm-charts`/`argocd` but
-> awaiting cluster Instantiation. RabbitMQ, Redis, Vault/External-Secrets, and the observability stack
-> are **designed but not deployed**. Diagram 2 below is the source of truth for what is live.
+> What is **running today** is the read/write API split, PostgreSQL, pgAdmin, the **Envoy Gateway
+> edge with the central Swagger UI** ([ADR-0007](./docs/adr/0007-envoy-gateway-edge.md),
+> [ADR-0008](./docs/adr/0008-central-api-docs.md)), and Argo CD. RabbitMQ, Redis,
+> Vault/External-Secrets, and the observability stack are **designed but not deployed**.
+> Diagram 2 below is the source of truth for what is live.
 
 ## Tech stack
 
@@ -32,9 +32,8 @@ on hardware you already own, with no cloud bill.
 | CI | GitHub Actions + reusable `ci-templates` | ✅ Live |
 | Image registry | GitHub Container Registry (GHCR) | ✅ Live |
 | Local cluster | k3d (single-node today) | ✅ Live |
-| Ingress / edge | Traefik (k3d built-in) | ✅ Live (until edge cutover) |
-| Edge gateway | Envoy Gateway (Gateway API, replaces the Nginx `gateway-proxy` plan — ADR-0007) | 🟡 Implemented, cutover pending |
-| API docs | Swagger UI (central page at `api.localhost` — ADR-0008) | 🟡 Implemented, cutover pending |
+| Ingress / edge | Envoy Gateway (Gateway API; replaced Traefik and the Nginx `gateway-proxy` plan — ADR-0007) | ✅ Live |
+| API docs | Swagger UI (central page at `api.localhost` — ADR-0008) | ✅ Live |
 | Message queue | RabbitMQ (async write path) | 🟡 Planned |
 | Cache | Redis (read-side cache) | 🟡 Planned |
 | Secrets | Vault + External Secrets Operator | 🟡 Planned (manual today) |
@@ -83,7 +82,8 @@ flowchart TB
     classDef partial fill:#fff4cc,stroke:#f9a825,color:#7f6000;
 
     client([Client / browser])
-    traefik["Traefik ingress (*.localhost)"]
+    envoy["Envoy Gateway (api / pgadmin / argocd .localhost)"]
+    docs["Swagger UI (central API docs)"]
     write[write-api]
     read[read-api]
     pgadmin[pgAdmin]
@@ -91,22 +91,25 @@ flowchart TB
     argo[[Argo CD]]
     secrets["Secrets: manual kubectl apply"]
 
-    envoy["Envoy Gateway + central Swagger UI (cutover pending)"]
     mq{{RabbitMQ}}
     redis[("Redis")]
     obs["Observability: OTel / Loki / Grafana"]
 
-    client --> traefik
-    traefik --> write
-    traefik --> read
-    traefik --> pgadmin
+    client --> envoy
+    envoy -->|"/write/*"| write
+    envoy -->|"/read/*"| read
+    envoy -->|"/"| docs
+    envoy -->|pgadmin.localhost| pgadmin
+    envoy -->|argocd.localhost| argo
     write --> pg
     read --> pg
     pgadmin --> pg
+    argo -. reconciles .-> envoy
     argo -. reconciles .-> write
     argo -. reconciles .-> read
     argo -. reconciles .-> pg
     argo -. reconciles .-> pgadmin
+    argo -. reconciles .-> docs
     secrets -. consumed by .-> write
     secrets -. consumed by .-> read
     secrets -. consumed by .-> pg
@@ -117,9 +120,9 @@ flowchart TB
         l3["Partial / stopgap"]:::partial
     end
 
-    class client,traefik,write,read,pgadmin,pg,argo running;
+    class client,envoy,docs,write,read,pgadmin,pg,argo running;
     class mq,redis,obs planned;
-    class secrets,envoy partial;
+    class secrets partial;
 ```
 
 ### 3. GitOps delivery flow
