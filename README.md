@@ -64,7 +64,7 @@ flowchart TB
 
     client([Client / browser]):::live
 
-    subgraph rt["Argo CD–reconciled workloads · k3d / shipyard"]
+    subgraph rt["Reconciled by Argo CD · k3d / shipyard"]
         direction TB
         envoy["Envoy Gateway<br/>api · pgadmin · argocd .localhost"]:::live
         docs["Swagger UI<br/>central API docs"]:::live
@@ -96,7 +96,6 @@ flowchart TB
     mq -.->|consume| consumer
     consumer -.->|update read model| pg
 
-    argo -. reconciles .-> rt
     secrets -. consumed by .-> write
     secrets -. consumed by .-> read
     secrets -. consumed by .-> pg
@@ -111,14 +110,13 @@ flowchart TB
 
     linkStyle 0,1,2,3,4,5,6,7,8 stroke:#2e7d32,stroke-width:2px;
     linkStyle 9,10,11,12 stroke:#9e9e9e,stroke-width:1.5px,stroke-dasharray:5 5;
-    linkStyle 13 stroke:#1565c0,stroke-width:1.5px;
-    linkStyle 14,15,16 stroke:#f9a825,stroke-width:1.5px;
+    linkStyle 13,14,15 stroke:#f9a825,stroke-width:1.5px;
 ```
 
 **Edges:** solid green = live request/data path · grey dashed = designed, not deployed ·
-blue dotted = Argo CD reconcile · amber dotted = secrets (manual today). The planned Observability
-stack (OTel · Loki · Grafana) is omitted here for clarity; see the table above
-and [observability.md](./docs/observability.md).
+amber dotted = secrets (manual today). Argo CD (blue) reconciles everything in the box —
+Diagram 2 shows how. The planned Observability stack (OTel · Loki · Grafana) is omitted here
+for clarity; see the table above and [observability.md](./docs/observability.md).
 
 ### 2. GitOps delivery flow
 
