@@ -17,8 +17,7 @@ progressive delivery, least-privilege data access, and clean service boundaries.
 
 > **Honesty note (it's a portfolio piece and playground):** some designed components are not built yet.
 > What is **running today** is the read/write API split, PostgreSQL, pgAdmin, the **Envoy Gateway
-> edge with the central Swagger UI** ([ADR-0007](./docs/adr/0007-envoy-gateway-edge.md),
-> [ADR-0008](./docs/adr/0008-central-api-docs.md)), and Argo CD. RabbitMQ, Redis,
+> edge with the central Swagger UI**, and Argo CD. RabbitMQ, Redis,
 > Vault/External-Secrets, and the observability stack are **designed but not deployed**.
 > The colour-coded architecture diagram below is the source of truth for what is live.
 
@@ -32,8 +31,8 @@ actually running in my cluster.
 | API services | Python 3.12 · FastAPI · SQLAlchemy 2 (async) · Alembic | `api` | ✅ Live |
 | Database | PostgreSQL 16 (StatefulSet, `local-path` PVC) | `postgres` | ✅ Live |
 | DB admin UI | pgAdmin 4 | `postgres` | ✅ Live |
-| Ingress / edge | Envoy Gateway (Gateway API — [ADR-0007](./docs/adr/0007-envoy-gateway-edge.md)) | `helm-charts` | ✅ Live |
-| API docs | Swagger UI (central page at `api.localhost` — [ADR-0008](./docs/adr/0008-central-api-docs.md)) | `api` | ✅ Live |
+| Ingress / edge | Envoy Gateway (Gateway API) | `helm-charts` | ✅ Live |
+| API docs | Swagger UI (central page at `api.localhost`) | `api` | ✅ Live |
 | Packaging | Helm (one chart per deployable) | `helm-charts` | ✅ Live |
 | GitOps / CD | Argo CD (app-of-apps) | `argocd` | ✅ Live |
 | CI | GitHub Actions + reusable workflows | `ci-templates` | ✅ Live |
