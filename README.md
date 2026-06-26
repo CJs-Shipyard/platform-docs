@@ -168,7 +168,7 @@ flowchart LR
 ## Where to look next
 
 - [Architecture overview](./docs/architecture.md) — components, responsibilities, namespaces
-- [Local setup guide](./docs/local-setup.md) — stand it up in your own cluster
+- [Local setup guide](./docs/local-setup.md) — stand it up in your own cluster [beta]
 - [Observability](./docs/observability.md) — the planned OTel / Loki / Grafana approach
 - [Conventions](./docs/conventions.md) — how to contribute changes
 - [Architecture Decision Records](./docs/adr/README.md) — why the platform is shaped this way
