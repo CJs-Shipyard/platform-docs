@@ -50,9 +50,8 @@ actually running in my cluster.
 
 ### 1. Architecture & live status
 
-Overarching view of the platform. **Color defines reality:** green nodes and edges run in the k3d
-cluster today, grey-dashed is designed-but-not-deployed, amber is a manual stopgap, and blue is the
-GitOps control plane. Everything in the box is reconciled by Argo CD.
+Overarching view of the platform — **color defines reality.** Everything inside the box is
+reconciled by Argo CD; Diagram 2 shows how.
 
 ```mermaid
 flowchart TB
@@ -112,10 +111,14 @@ flowchart TB
     linkStyle 13,14,15 stroke:#f9a825,stroke-width:1.5px;
 ```
 
-**Edges:** solid green = live request/data path · grey dashed = designed, not deployed ·
-amber dotted = secrets (manual today). Argo CD (blue) reconciles everything in the box —
-Diagram 2 shows how. The planned Observability stack (OTel · Loki · Grafana) is omitted here
-for clarity; see the table above and [observability.md](./docs/observability.md).
+**Edges** (the legend covers node colors):
+
+- **Solid green** — live request / data path
+- **Grey dashed** — designed, not deployed
+- **Amber dotted** — secrets, applied by hand today
+
+The planned Observability stack (OTel · Loki · Grafana) is omitted here for clarity; see the
+table above and [observability.md](./docs/observability.md).
 
 ### 2. GitOps delivery flow
 
