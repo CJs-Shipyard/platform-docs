@@ -53,6 +53,10 @@ actually running in my cluster.
 Overarching view of the platform — **color defines reality.** Everything inside the box is
 reconciled by Argo CD; Diagram 2 shows how.
 
+**NOTE** As of at least 07 July 2026, there is a bug in the rendering of mermaid chart subgraphs in Github (elaborated on in the Open Issue ticket [here](https://github.com/Microsoft/vscode/issues/324673))
+        So if my mermaid chart below looks off, that's why.
+
+
 ```mermaid
 flowchart TB
     classDef live fill:#d4f7d4,stroke:#2e7d32,color:#1b5e20;
