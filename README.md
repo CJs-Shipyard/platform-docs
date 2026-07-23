@@ -50,12 +50,9 @@ actually running in my cluster.
 
 ### 1. Architecture & live status
 
-Overarching view of the platform — **color defines reality.** Everything inside the box is
-reconciled by Argo CD; Diagram 2 shows how.
-
-**NOTE** As of at least 07 July 2026, there is a bug in the rendering of mermaid chart subgraphs in Github (elaborated on in the Open Issue ticket [here](https://github.com/Microsoft/vscode/issues/324673))
-        So if my mermaid chart below looks off, that's why.
-
+Overarching view of the platform — **color defines reality.** Apart from the client, every
+component here lives in the local k3d `shipyard` cluster and is delivered by Argo CD;
+Diagram 2 shows how.
 
 ```mermaid
 flowchart TB
@@ -63,44 +60,6 @@ flowchart TB
     classDef planned fill:#f0f0f0,stroke:#9e9e9e,color:#616161,stroke-dasharray:5 5;
     classDef partial fill:#fff4cc,stroke:#f9a825,color:#7f6000;
     classDef ctrl fill:#e3f2fd,stroke:#1565c0,color:#0d47a1;
-
-    client([Client / browser]):::live
-
-    subgraph rt["Reconciled by Argo CD · k3d / shipyard"]
-        direction TB
-        envoy["Envoy Gateway<br/>api · pgadmin · argocd .localhost"]:::live
-        docs["Swagger UI<br/>central API docs"]:::live
-        write["write-api<br/>commands"]:::live
-        read["read-api<br/>queries"]:::live
-        pgadmin["pgAdmin"]:::live
-        pg[("PostgreSQL 16")]:::live
-    end
-
-    redis[("Redis cache")]:::planned
-    mq{{RabbitMQ}}:::planned
-    consumer["Consumer / projector"]:::planned
-
-    argo[[Argo CD]]:::ctrl
-    secrets["Secrets<br/>manual kubectl apply"]:::partial
-
-    client -->|HTTPS| envoy
-    envoy -->|"/write/*"| write
-    envoy -->|"/read/*"| read
-    envoy -->|"/"| docs
-    envoy -->|pgadmin.localhost| pgadmin
-    envoy -->|argocd.localhost| argo
-    write -->|persist command| pg
-    read -->|query on cache miss| pg
-    pgadmin -->|admin queries| pg
-
-    read -.->|check cache| redis
-    write -.->|publish event| mq
-    mq -.->|consume| consumer
-    consumer -.->|update read model| pg
-
-    secrets -. consumed by .-> write
-    secrets -. consumed by .-> read
-    secrets -. consumed by .-> pg
 
     subgraph legend["Legend"]
         direction LR
@@ -110,56 +69,88 @@ flowchart TB
         lC["Control plane"]:::ctrl
     end
 
-    linkStyle 0,1,2,3,4,5,6,7,8 stroke:#2e7d32,stroke-width:2px;
-    linkStyle 9,10,11,12 stroke:#9e9e9e,stroke-width:1.5px,stroke-dasharray:5 5;
-    linkStyle 13,14,15 stroke:#f9a825,stroke-width:1.5px;
+    secrets["Secrets · manual kubectl apply<br/>consumed by all live services"]:::partial
+    client([Client / browser]):::live
+
+    envoy["Envoy Gateway<br/>api · pgadmin · argocd .localhost"]:::live
+    docs["Swagger UI · central API docs<br/>shows both write-api & read-api"]:::live
+    write["write-api<br/>commands"]:::live
+    read["read-api<br/>queries"]:::live
+    pgadmin["pgAdmin"]:::live
+    pg[("PostgreSQL 16")]:::live
+
+    redis[("Redis cache")]:::planned
+    mq{{RabbitMQ}}:::planned
+    consumer["Consumer / projector"]:::planned
+
+    argo[[Argo CD]]:::ctrl
+    write -.->|publish event| mq
+
+    client -->|HTTPS| envoy
+    envoy -->|"api.localhost/read/*"| read
+    envoy -->|"api.localhost/write/*"| write
+    envoy -->|"api.localhost/docs"| docs
+    envoy -->|pgadmin.localhost| pgadmin
+    envoy -->|argocd.localhost| argo
+    write -->|persist command| pg
+    read -->|query on cache miss| pg
+    pgadmin -->|admin queries| pg
+
+    read -.->|check cache| redis
+    mq -.->|consume| consumer
+    consumer -.->|update read model| pg
+
+    %% layout only, invisible: dagre's network-simplex ranker minimises total edge
+    %% length, so without these it slides read-api and redis off their intended rows.
+    %% read ~~~ mq pins read-api level with write-api; mq ~~~ redis pins redis level
+    %% with consumer.
+    read ~~~ mq
+    mq ~~~ redis
+
+    linkStyle 1,2,3,4,5,6,7,8,9 stroke:#2e7d32,stroke-width:2px;
+    linkStyle 0,10,11,12 stroke:#9e9e9e,stroke-width:1.5px,stroke-dasharray:5 5;
+    linkStyle 13,14 stroke:none,stroke-width:0px,fill:none;
 ```
 
 **Edges** (the legend covers node colors):
 
 - **Solid green** — live request / data path
 - **Grey dashed** — designed, not deployed
-- **Amber dotted** — secrets, applied by hand today
 
 The planned Observability stack (OTel · Loki · Grafana) is omitted here for clarity; see the
 table above and [observability.md](./docs/observability.md).
 
 ### 2. GitOps delivery flow
 
-How a code change becomes a running pod — no manual `kubectl apply` of workloads. Same colour
-language as Diagram 1: green = runs today, blue = Argo CD (control plane); dashed green = image
-pull. The boxes show where each step lives — GitHub vs. the cluster.
+How a code change becomes a running pod — no manual `kubectl apply` of workloads. Steps are
+numbered 1–8 in causal order. The flow forks at `ci-templates` into an image branch (4, 8) and
+a chart branch (5, 6), which reconverge in the cluster. Same colour language as Diagram 1:
+green = runs today, blue = Argo CD (control plane); dashed green = image pull.
 
 ```mermaid
-flowchart LR
+flowchart TB
     classDef live fill:#d4f7d4,stroke:#2e7d32,color:#1b5e20;
     classDef ctrl fill:#e3f2fd,stroke:#1565c0,color:#0d47a1;
 
     dev([Developer]):::live
 
-    subgraph gh["GitHub.com · source · CI · registry"]
-        direction TB
-        repo["Service repo (api/)"]:::live
-        gha["GitHub Actions<br/>build-image.yml"]:::live
-        tmpl[["ci-templates<br/>docker-build · helm-bump"]]:::live
-        ghcr[("GHCR image :short-sha")]:::live
-        helm["helm-charts<br/>values.yaml (image.tag)"]:::live
-    end
+    repo["service repo<br/>(api/)"]:::live
+    gha["repo-local GitHub Actions<br/>build-image.yml"]:::live
+    tmpl[["ci-templates repo<br/>docker-build & helm-bump Actions"]]:::live
+    ghcr[("GHCR<br/>image :short-sha")]:::live
+    helm["helm-charts repo<br/>values.yaml (image.tag)"]:::live
 
-    subgraph cl["k3d cluster · shipyard"]
-        direction TB
-        argo{{Argo CD}}:::ctrl
-        k3d[("workloads")]:::live
-    end
+    argo{{"Argo CD<br/>k3d · shipyard"}}:::ctrl
+    k3d[("workloads<br/>k3d · shipyard")]:::live
 
-    dev -->|git push| repo
-    repo -->|triggers| gha
-    gha -->|calls| tmpl
-    tmpl -->|build & push| ghcr
-    tmpl -->|commit tag bump| helm
-    argo -->|detects change| helm
-    argo -->|sync / apply| k3d
-    ghcr -.->|image pull| k3d
+    dev -->|1. git push| repo
+    repo -->|2. triggers| gha
+    gha -->|3. calls| tmpl
+    tmpl -->|4. build & push| ghcr
+    tmpl -->|5. commit tag bump| helm
+    argo -->|6. detects change| helm
+    argo -->|7. sync / apply| k3d
+    ghcr -.->|8. image pull| k3d
 
     subgraph legend["Legend"]
         direction LR
