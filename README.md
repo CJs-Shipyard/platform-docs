@@ -97,7 +97,7 @@ flowchart TB
     pgadmin -->|admin queries| pg
 
     read -.->|check cache| redis
-    mq -.->|consume| consumer
+    mq -.-> consumer
     consumer -.->|update read model| pg
 
     %% layout only, invisible: dagre's network-simplex ranker minimises total edge
