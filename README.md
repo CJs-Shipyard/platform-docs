@@ -73,14 +73,14 @@ flowchart TB
     client([Client / browser]):::live
 
     envoy["Envoy Gateway<br/>api · pgadmin · argocd .localhost"]:::live
-    docs["Swagger UI · central API docs<br/>shows both write-api & read-api"]:::live
+    docs["Swagger UI · central API <br/>shows both write-api & read-api"]:::live
     write["write-api<br/>commands"]:::live
     read["read-api<br/>queries"]:::live
     pgadmin["pgAdmin"]:::live
     pg[("PostgreSQL 16")]:::live
 
     redis[("Redis cache")]:::planned
-    mq{{RabbitMQ}}:::planned
+    mq["RabbitMQ"]:::planned
     consumer["Consumer / projector"]:::planned
 
     argo[[Argo CD]]:::ctrl
@@ -89,7 +89,7 @@ flowchart TB
     client -->|HTTPS| envoy
     envoy -->|"api.localhost/read/*"| read
     envoy -->|"api.localhost/write/*"| write
-    envoy -->|"api.localhost/docs"| docs
+    envoy -->|"api.localhost"| docs
     envoy -->|pgadmin.localhost| pgadmin
     envoy -->|argocd.localhost| argo
     write -->|persist command| pg
@@ -112,6 +112,14 @@ flowchart TB
     linkStyle 13,14 stroke:none,stroke-width:0px,fill:none;
 ```
 
+**Shapes** — colour says *whether it runs*, shape says *what kind of thing it is*. The same
+four shapes mean the same things in both diagrams:
+
+- **Stadium** (Client, Developer) — human actor, outside the platform
+- **Rectangle** (Envoy Gateway, write-api, RabbitMQ) — a platform component
+- **Cylinder** (PostgreSQL, Redis, GHCR) — datastore or artifact registry
+- **Double-sided box** (Argo CD, CI workflows) — automation that acts *on* the platform
+
 **Edges** (the legend covers node colors):
 
 - **Solid green** — live request / data path
@@ -124,7 +132,7 @@ table above and [observability.md](./docs/observability.md).
 
 How a code change becomes a running pod — no manual `kubectl apply` of workloads. Steps are
 numbered 1–8 in causal order. The flow forks at `ci-templates` into an image branch (4, 8) and
-a chart branch (5, 6), which reconverge in the cluster. Same colour language as Diagram 1:
+a chart branch (5, 6), which reconverge in the cluster. Same colour and shape language as Diagram 1:
 green = runs today, blue = Argo CD (control plane); dashed green = image pull.
 
 ```mermaid
@@ -135,19 +143,19 @@ flowchart TB
     dev([Developer]):::live
 
     repo["service repo<br/>(api/)"]:::live
-    gha["repo-local GitHub Actions<br/>build-image.yml"]:::live
-    tmpl[["ci-templates repo<br/>docker-build & helm-bump Actions"]]:::live
+    gha[["repo-local <br/>GitHub Action<br/>build-image.yml"]]:::live
+    tmpl[["ci-templates repo<br/>reusable Github Actions:<br/>docker-build & helm-bump"]]:::live
     ghcr[("GHCR<br/>image :short-sha")]:::live
-    helm["helm-charts repo<br/>values.yaml (image.tag)"]:::live
+    helm["helm-charts repo<br/>values.yaml <br/>(image.tag update)"]:::live
 
-    argo{{"Argo CD<br/>k3d · shipyard"}}:::ctrl
-    k3d[("workloads<br/>k3d · shipyard")]:::live
+    argo[["Argo CD<br/>Application"]]:::ctrl
+    k3d["k3d cluster <br/> shipyard workloads"]:::live
 
     dev -->|1. git push| repo
     repo -->|2. triggers| gha
     gha -->|3. calls| tmpl
     tmpl -->|4. build & push| ghcr
-    tmpl -->|5. commit tag bump| helm
+    tmpl -->|5. commit image tag bump| helm
     argo -->|6. detects change| helm
     argo -->|7. sync / apply| k3d
     ghcr -.->|8. image pull| k3d
